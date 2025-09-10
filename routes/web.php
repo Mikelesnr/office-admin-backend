@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Cookie;
+use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return ['Laravel' => app()->version()];
@@ -10,16 +10,20 @@ Route::get('/', function () {
 require __DIR__ . '/auth.php';
 
 
-Route::get('/csrf-token', function () {
-    // Trigger Sanctum to set the CSRF cookie
-    \Illuminate\Support\Facades\Route::dispatch(
-        \Illuminate\Http\Request::create('/sanctum/csrf-cookie', 'GET')
-    );
+Route::get('/csrf-token', function (Request $request) {
+    $response = Route::dispatch(Request::create('/sanctum/csrf-cookie', 'GET'));
 
-    // Read the token from the cookie
-    $token = Cookie::get('XSRF-TOKEN');
+    $cookies = $response->headers->getCookies();
+    $xsrfToken = null;
+
+    foreach ($cookies as $cookie) {
+        if ($cookie->getName() === 'XSRF-TOKEN') {
+            $xsrfToken = $cookie->getValue();
+            break;
+        }
+    }
 
     return response()->json([
-        'token' => $token,
-    ]);
+        'token' => $xsrfToken,
+    ])->withCookie(...$cookies);
 });
